@@ -1,21 +1,20 @@
 package main
 
 import (
-    "fmt"
-    // "html"
-		"strings"
-		"bytes"
-		"io"
-    "log"
-		"io/ioutil"
-    "net/http"
-		"golang.org/x/net/html"
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"regexp"
+	"strings"
+
+	"golang.org/x/net/html"
 )
 
 func getAttribute(n *html.Node, key string) (string, bool) {
-
 	for _, attr := range n.Attr {
-
 			if attr.Key == key {
 					return attr.Val, true
 			}
@@ -25,7 +24,6 @@ func getAttribute(n *html.Node, key string) (string, bool) {
 }
 
 func renderNode(n *html.Node) string {
-
 	var buf bytes.Buffer
 	w := io.Writer(&buf)
 
@@ -53,15 +51,12 @@ func checkId(n *html.Node, id string) bool {
 }
 
 func traverse(n *html.Node, id string) *html.Node {
-
 	if checkId(n, id) {
 			return n
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-
 			res := traverse(c, id)
-
 			if res != nil {
 					return res
 			}
@@ -71,12 +66,10 @@ func traverse(n *html.Node, id string) *html.Node {
 }
 
 func getElementById(n *html.Node, id string) *html.Node {
-
 	return traverse(n, id)
 }
 
 func getHtmlPage(webPage string) (string, error) {
-
 	resp, err := http.Get(webPage)
 
 	if err != nil {
@@ -95,11 +88,19 @@ func getHtmlPage(webPage string) (string, error) {
 	return string(body), nil
 }
 
+type sentence  struct { 
+	id uint8
+	shown bool
+	text string
+}
+type sentencesList map[string][]sentence
+
 func main() {
 		var url = "https://sentencedict.com/Fed%20up.html"
 		data , err := getHtmlPage(url)
-		// res , err := http.Get(url)
-		// fmt.Println(data)
+		sentencesSlice := sentencesList{}
+		sentencesSlice["fed up"] = append(sentencesSlice["fed up"], sentence{id:12,shown:false,text: "test"})
+
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -111,7 +112,38 @@ func main() {
 
     tag := getElementById(doc, "all")
     output := renderNode(tag)
-
-    fmt.Println(output)
+		digitDot := regexp.MustCompile(`\d*\.`)
+		tokenizer := html.NewTokenizer(strings.NewReader(output))
+		previousStartTokenTest := tokenizer.Token()
+		loopDomTest :
+		for {
+			ttt := ""
+			tokenType := tokenizer.Next()
+			switch {
+				case tokenType == html.ErrorToken:
+					break loopDomTest
+				case tokenType == html.StartTagToken:
+					previousStartTokenTest = tokenizer.Token()
+				case tokenType == html.TextToken :
+					mainWord := ""
+					if previousStartTokenTest.Data == "script" {
+						continue
+					}
+					if previousStartTokenTest.Data == "em" {
+						mainWord = strings.TrimSpace(html.UnescapeString(string(tokenizer.Text())))
+					}
+					TxtContent := strings.TrimSpace(html.UnescapeString(string(tokenizer.Text())))
+					TxtContent = digitDot.ReplaceAllString(TxtContent,"${1}")
+					// fmt.Printf(previousStartTokenTest.Data)
+					if len(mainWord) > 0 {
+						TxtContent += mainWord
+					}
+					ttt += TxtContent
+					if len(TxtContent) > 0 {
+							// fmt.Printf("%s\n", TxtContent)
+					}
+					fmt.Printf("%s\n", ttt)
+			}
+		}
 
 }

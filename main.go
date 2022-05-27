@@ -192,7 +192,7 @@ func main() {
 		e.GET("/word",func (c echo.Context) error  {
 			return c.JSON(http.StatusOK, result)
 		})
-		e.Logger.Fatal(e.Start(":1323"))
+		e.Logger.Fatal(e.Start(":8080"))
 		data , err := getHtmlPage(generateURL(url,wantedWord))
 
 		if err != nil {
